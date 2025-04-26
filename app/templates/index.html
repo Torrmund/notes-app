@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>NoteApp</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.4/css/bulma.min.css">
+    <style>
+        body {
+            background-color: #f5f7fa;
+        }
+        .note-card {
+            transition: transform 0.2s ease;
+        }
+        .note-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0px 8px 20px rgba(0, 0, 0, 0.15);
+        }
+        .navbar {
+            background-color: #00d1b2;
+        }
+        .navbar-brand .navbar-item {
+            font-weight: bold;
+            font-size: 1.5rem;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+<nav class="navbar" role="navigation" aria-label="main navigation">
+    <div class="navbar-brand">
+        <a class="navbar-item" href="/">
+            📝 NoteApp
+        </a>
+    </div>
+</nav>
+
+<section class="section">
+    <div class="container">
+        <form action="/add" method="post" class="box">
+            <h2 class="title is-4">Добавить новую заметку</h2>
+            <div class="field">
+                <label class="label">Заголовок</label>
+                <div class="control">
+                    <input class="input" type="text" name="title" placeholder="Введите заголовок" required>
+                </div>
+            </div>
+            <div class="field">
+                <label class="label">Содержание</label>
+                <div class="control">
+                    <textarea class="textarea" name="content" placeholder="Введите текст заметки" required></textarea>
+                </div>
+            </div>
+            <div class="control">
+                <button class="button is-primary is-fullwidth">Добавить заметку</button>
+            </div>
+        </form>
+
+        <div class="columns is-multiline">
+            {% for note in notes %}
+                <div class="column is-one-third">
+                    <div class="card note-card">
+                        <header class="card-header">
+                            <p class="card-header-title">
+                                {{ note.title }}
+                            </p>
+                        </header>
+                        <div class="card-content">
+                            <div class="content">
+                                {{ note.content }}
+                            </div>
+                        </div>
+                        <footer class="card-footer">
+                            <a href="/delete/{{ note.id }}" class="card-footer-item has-text-danger">Удалить</a>
+                        </footer>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+</body>
+</html>

@@ -1,0 +1,33 @@
+namespace: notes-app
+
+replicaCount: 1
+
+image:
+  repository: torrmund/notes-app
+  tag: v1.0.0
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 5000
+
+ingress:
+  enabled: true
+  className: nginx
+  host: notes.torrmund.xyz
+
+database:
+  host: notes-postgresql
+  port: 5432
+  name: notes
+  user: notes
+  password: notespassword
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 250m
+    memory: 256Mi
+
