@@ -24,7 +24,7 @@ pipeline {
         stage("Push Docker Image to Yandex Container Registry") {
             steps {
                 script{
-                    '''
+                    sh '''
                     #!/bin/bash
                     echo "Logging in to Yandex Container Registry"
                     yc config set service-account-key ${env.HOME}/secrets/registry_sa_key.json
