@@ -58,7 +58,6 @@ pipeline {
             }
         }
     }
-}
 
 post {
     success {
@@ -67,4 +66,6 @@ post {
     failure {
         echo "An error occurred while executing the pipeline."
     }
+}
+
 }
