@@ -24,7 +24,7 @@ pipeline {
         NOTES_APP_POSTGRESQL_PASSWORD = credentials('NOTES_APP_POSTGRESQL_PASSWORD')
 
         // Определяем тип запуска
-        IS_TAG = sh(scripts: 'if [ -n "$GIT_TAG" ]; then echo "true"; else echo "false"; fi', returnStdout: true).trim()
+        IS_TAG = sh(script: 'if [ -n "$GIT_TAG" ]; then echo "true"; else echo "false"; fi', returnStdout: true).trim()
         COMMIT_HASH = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
     }
 
