@@ -93,7 +93,7 @@ pipeline {
             steps {
                 echo "Deploying to Kubernetes using Helm..."
                 sh '''
-                    helm upgrage --kubeconfig ${KUBECONFIG_PATH} \
+                    helm upgrade --kubeconfig ${KUBECONFIG_PATH} \
                         --install notes-app oci://registry-1.docker.io/torrmund/notes-app --version 0.1.0 \
                         -f ${NOTES_APP_VALUES} \
                         --set "database.user=${NOTES_APP_POSTGRESQL_USER}" \
