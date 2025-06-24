@@ -27,6 +27,7 @@ pipeline {
                     echo "Logging in to Yandex Container Registry"
                     sh "yc config set service-account-key \${env.HOME}/secrets/registry_sa_key.json"
                     sh """
+                        #!/bin/bash
                         docker login --username iam --password "\$(yc iam create-token)" cr.yandex/${YCR_ID}
                     """
                     echo "Pushing Docker image with tag: ${IMAGE_TAG}"
