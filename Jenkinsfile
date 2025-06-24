@@ -6,7 +6,7 @@ pipeline {
     }
 
     parameters{
-        string(name: 'REGISTRY_ID', defaultValue: '', description: 'Идентификатор Yandex Container Registry')
+        string(name: 'REGISTRY_ID', defaultValue: 'crp2d7g0dbcns6rmgje3', description: 'Идентификатор Yandex Container Registry')
     }
 
     environment {
