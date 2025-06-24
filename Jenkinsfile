@@ -2,7 +2,21 @@ pipeline {
     agent any
 
     triggers{
-        githubPush()
+        GenericTrigger(
+            genericVariables: [
+                [key: 'ref', value: '$.ref'],
+                [key: 'before', value: '$.before'],
+                [key: 'after', value: '$.after'],
+                [key: 'repository', value: '$.repository.name']
+            ],
+            causeString: 'GitHub Push Event',
+            triggerConditions: [
+                new BooleanTriggerCondition().setExpression('ref ==~ /refs/(heads\\/main|tags\\/)/')
+            ],
+            printContributedVariables: true,
+            printPostContent: true,
+            silentMode: false
+        )
     }
 
     parameters{
