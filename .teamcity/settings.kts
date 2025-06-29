@@ -1,125 +1,94 @@
 import jetbrains.buildServer.configs.kotlin.*
 import jetbrains.buildServer.configs.kotlin.buildSteps.script
-import jetbrains.buildServer.configs.kotlin.triggers.vcs
+import jetbrains.buildServer.configs.kotlin.buildSteps.dockerCommand
 
 project {
-    id("NotesAppProject")
-    name = "Notes App"
-    description = "CI/CD pipeline for Notes App with Docker and Helm"
-
-    // Подключение VCS
-    vcsRoot(GitHubRepo)
-
-    // Конфигурации билдов
-    buildType(BuildAndPushDockerImage)
-    buildType(DeployToKubernetes)
+    buildType(BuildAndPushImage)
 }
 
-object GitHubRepo : GitVcsRoot({
-    name = "GitHub Repo"
-    url = "https://github.com/ <your-username>/<your-repo>.git"
-    branchSpec = "+:refs/heads/main; +:refs/tags/*"
-    authMethod = password {
-        userName = "your-git-user"
-        password = "env.GIT_PASSWORD" // добавить в параметры TeamCity
-    }
-})
-
-object BuildAndPushDockerImage : BuildType({
+object BuildAndPushImage : BuildType({
     name = "Build and Push Docker Image"
-    description = "Builds Docker image and pushes to Yandex Container Registry"
 
     vcs {
-        root(Refs.all)
-    }
-
-    params {
-        param("env.REGISTRY_ID", "credentialsJSON") // ID YC Registry
-        password("env.NOTES_APP_POSTGRESQL_USER", "credentialsJSON") // Dummy, нужно заменить
-        password("env.NOTES_APP_POSTGRESQL_PASSWORD", "credentialsJSON") // Dummy, нужно заменить
+        root(DslContext.settingsRoot)
+        branchFilter = """
+            +:refs/heads/main
+            +:refs/tags/*
+        """.trimIndent()
     }
 
     steps {
-        step("Detect Branch Type", StepModelType.Script) {
+        // Установить yc CLI и авторизоваться
+        script {
+            name = "Setup YC CLI and Login to Yandex Container Registry"
             scriptContent = """
-                #!/bin/bash
-                set -e
-                
-                if [[ "%build.vcs.number%" == refs/tags/* ]]; then
-                    echo "##teamcity[setParameter name='env.IS_TAG' value='true']"
-                    echo "##teamcity[setParameter name='env.RELEASE_TAG' value='${'$'}{build.vcs.number##*/}]"
+                # Авторизация через ключ сервисного аккаунта
+                yc config set service-account-key %home.path%/secrets/registry_sa_key.json
+
+                # Получаем токен IAM для Docker login
+                TOKEN=\$(yc iam create-token)
+
+                # Авторизация в Container Registry
+                docker login cr.yandex/%REGISTRY_ID% --username iam --password \$TOKEN
+            """.trimIndent()
+        }
+
+        // Определяем тег
+        script {
+            name = "Determine Docker Tag"
+            scriptContent = """
+                if [[ "%teamcity.build.vcs.branch%" == release/* || "%teamcity.build.vcs.branch%" == refs/tags/* ]]; then
+                    TAG=\$(echo "%teamcity.build.vcs.branch%" | sed -e 's|refs/tags/||' -e 's|release/||')
+                    echo "##teamcity[setParameter name='docker.tag' value='\$TAG']"
                 else
-                    echo "##teamcity[setParameter name='env.IS_TAG' value='false']"
-                    COMMIT_HASH=$(git rev-parse --short HEAD)
-                    echo "##teamcity[setParameter name='env.COMMIT_HASH' value='${'$'}COMMIT_HASH]"
+                    TAG=\$(git rev-parse --short HEAD)
+                    echo "##teamcity[setParameter name='docker.tag' value='\$TAG']"
                 fi
             """.trimIndent()
         }
 
-        script {
-            name = "Login to Yandex Container Registry"
-            scriptContent = """
-                yc config set service-account-key /home/teamcity/sa-key.json
-                IAM_TOKEN=$(yc iam create-token)
-                docker login --username iam --password ${'$'}IAM_TOKEN cr.yandex/%env.REGISTRY_ID%
-            """
-        }
-
-        script {
-            name = "Build and Push Docker Image"
-            scriptContent = """
-                if [ "%env.IS_TAG%" = "true" ]; then
-                    docker build -t cr.yandex/%env.REGISTRY_ID%/notes-app:%env.RELEASE_TAG% .
-                    docker push cr.yandex/%env.REGISTRY_ID%/notes-app:%env.RELEASE_TAG%
-                else
-                    docker build -t cr.yandex/%env.REGISTRY_ID%/notes-app:%env.COMMIT_HASH% .
-                    docker push cr.yandex/%env.REGISTRY_ID%/notes-app:%env.COMMIT_HASH%
-                fi
-            """
-        }
-    }
-
-    triggers {
-        vcs {
-            branchFilter = "+:<default>"
-        }
-    }
-})
-
-object DeployToKubernetes : BuildType({
-    name = "Deploy to Kubernetes"
-    description = "Deploys the app to Kubernetes using Helm on tag push"
-
-    vcs {
-        root(Refs.all)
-    }
-
-    steps {
-        script {
-            name = "Helm Upgrade"
-            scriptContent = """
-                helm upgrade --kubeconfig /home/teamcity/kube_config \
-                    --install notes-app oci://registry-1.docker.io/torrmund/notes-app --version 0.1.0 \
-                    -f /home/teamcity/values.yaml \
-                    --set "database.user=%NOTES_APP_POSTGRESQL_USER%" \
-                    --set "database.password=%NOTES_APP_POSTGRESQL_PASSWORD%" \
-                    --set "image.tag=%env.RELEASE_TAG%" \
-                    --atomic
-            """
-        }
-    }
-
-    triggers {
-        vcs {
-            branchFilter = "+:refs/tags/*"
-        }
-    }
-
-    dependencies {
-        dependency(BuildAndPushDockerImage) {
-            snapshot {
-                onDependencyFailure = FailureAction.FAIL_TO_START
+        // Сборка образа
+        dockerCommand {
+            name = "Build Docker Image"
+            commandType = build {
+                namesAndTags = "cr.yandex/%REGISTRY_ID%/my-app:%docker.tag%"
+                platform = "linux/amd64"
+                contextDir = "."
             }
+        }
+
+        // Пуш образа
+        dockerCommand {
+            name = "Push Docker Image"
+            commandType = push {
+                imageTag = "cr.yandex/%REGISTRY_ID%/my-app:%docker.tag%"
+            }
+        }
+    }
+
+    requirements {
+        requirement("docker", "present")
+    }
+
+    params {
+        param("home.path", "/home/teamcity") // или другой путь к домашней директории
+        param("env.REGISTRY_ID", "") // Передается как параметр настройки проекта
+        password("env.REGISTRY_SA_KEY_PATH", "credentialsJSON:saKey") // секретный файл
+    }
+
+    triggers {
+        vcs {
+            branchFilter = """
+                +:refs/heads/main
+                +:refs/tags/*
+            """.trimIndent()
+        }
+    }
+
+    features {
+        feature {
+            type = "commit-status-publisher"
+            param("publisherId", "github")
         }
     }
 })
