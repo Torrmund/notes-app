@@ -52,6 +52,7 @@ helm upgrade --install noteapp ./charts/noteapp --create-namespace --namespace n
 helm uninstall noteapp -n noteapp
 ```
 
+
 ---
 
 ## ⚙️ Конфигурация
