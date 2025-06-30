@@ -43,9 +43,8 @@ object Build : BuildType({
     name = "Build"
 
     params {
-        param("env.REGISTRY_ID", "crpakasq8iqpp234ar6d")
+        param("env.REGISTRY_ID", "crpqdvte7ojh9gdq6l7e")
         param("docker.tag", "latest")
-        param("is.tag", "")
     }
 
     vcs {
@@ -73,7 +72,6 @@ object Build : BuildType({
                 TAG=${'$'}(git describe --tags --exact-match 2>/dev/null || echo "")
                 if [ -n "${'$'}TAG" ]; then
                 	echo "##teamcity[setParameter name='docker.tag' value='${'$'}TAG']"
-                    echo "##teamcity[setParameter name='is.tag' value='true']"
                 else
                 	COMMIT_HASH=${'$'}(git rev-parse --short HEAD)
                     echo "##teamcity[setParameter name='docker.tag' value='${'$'}COMMIT_HASH']"
@@ -102,7 +100,7 @@ object Build : BuildType({
 
     triggers {
         vcs {
-            branchFilter = "+:refs/heads/main, +:refs/tags/*"
+            branchFilter = ""
         }
     }
 })
@@ -127,7 +125,7 @@ object Deploy : BuildType({
                 #!/bin/bash
                 set -e
                 helm upgrade --kubeconfig %teamcity.agent.home.dir%/secrets/kube_config \
-                	--install notes-app oci://registry-1.docker.io/torrmund/notes-app --version 0.1.0 \
+                	--install notes-app ./charts/noteapp \
                     -f %teamcity.agent.home.dir%/secrets/notes_app_values.yaml \
                     --set "database.user=%env.NOTES_APP_POSTGRESQL_USER%" \
                     --set "database.password=%env.NOTES_APP_POSTGRESQL_PASSWORD%" \
@@ -141,7 +139,10 @@ object Deploy : BuildType({
         finishBuildTrigger {
             buildType = "${Build.id}"
             successfulOnly = true
-            branchFilter = "+:refs/tags/v*"
+            branchFilter = """
+                +:v*
+                -:<default>
+            """.trimIndent()
         }
     }
 
@@ -156,8 +157,11 @@ object NotesApp : GitVcsRoot({
     name = "NotesApp"
     url = "git@github.com:Torrmund/notes-app.git"
     branch = "refs/heads/main"
-    branchSpec = "+:refs/heads/main, +:refs/tags/*"
-    authMethod = uploadedKey {
-        uploadedKey = "id_ed25519"
+    branchSpec = """
+        +:refs/heads/main
+        +:refs/tags/(v*)
+    """.trimIndent()
+    useTagsAsBranches = true
+    authMethod = defaultPrivateKey {
     }
 })
