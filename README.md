@@ -54,6 +54,7 @@ helm uninstall noteapp -n noteapp
 
 ---
 
+
 ## ⚙️ Конфигурация
 
 Редактируйте `values.yml` для настройки:
