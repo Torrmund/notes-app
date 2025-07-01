@@ -43,7 +43,7 @@ object Build : BuildType({
     name = "Build"
 
     params {
-        param("env.REGISTRY_ID", "crpqdvte7ojh9gdq6l7e")
+        param("env.REGISTRY_ID", "")
         param("docker.tag", "latest")
     }
 
@@ -109,8 +109,8 @@ object Deploy : BuildType({
     name = "Deploy"
 
     params {
-        password("env.NOTES_APP_POSTGRESQL_PASSWORD", "zxxd088021ef214bbf0f9a3ee1583bb2b563a783e939dd6507c")
-        password("env.NOTES_APP_POSTGRESQL_USER", "zxxd088021ef214bbf0d18887d4e467e74e")
+        password("env.NOTES_APP_POSTGRESQL_PASSWORD", "")
+        password("env.NOTES_APP_POSTGRESQL_USER", "")
     }
 
     vcs {
